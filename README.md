@@ -31,6 +31,17 @@ apt update && apt -y install p7zip-full
 rm luna25_nodule_blocks.zip.001 luna25_nodule_blocks.zip.002
 ```
 
+### Paths
+Paths default to locations relative to the repository and can be overridden with environment variables:
+
+| Variable | Default |
+|----------|---------|
+| `LUNA25_DATA_DIR` | `<repo>/../luna25_nodule_blocks` |
+| `LUNA25_RESOURCES_DIR` | `<repo>/resources` (pretrained weights) |
+| `LUNA25_RESULTS_DIR` | `<repo>/results` |
+| `LUNA25_SPLITS_DIR` | `<repo>/data_splits` |
+| `LUNA25_ANNOTATION_DIR` | `<repo>/..` (all-data training) |
+
 ### Perform Training
 Before starting the training, ensure that the correct `experiment_config.py` is in the project root directory.
 

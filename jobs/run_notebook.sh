@@ -65,6 +65,8 @@ apptainer exec \
     --bind "$MODELS:/models" \
     --pwd "$PROJECT_ROOT" \
     --env PYTHONPATH="/models/hiera-luna25/.pylib" \
+    --env LUNA25_RESOURCES_DIR=/models/hiera-luna25 \
+    --env LUNA25_RESULTS_DIR=/models/hiera-luna25/results \
     "$IMAGE_DIR" \
     bash -c '
         set -euo pipefail

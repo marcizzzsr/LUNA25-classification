@@ -61,5 +61,8 @@ apptainer exec \
     --bind "$DATASETS:/datasets" \
     --bind "$MODELS:/models" \
     --pwd "$PROJECT_ROOT" \
+    --env LUNA25_DATA_DIR=/datasets/LUNA25/luna25_nodule_blocks \
+    --env LUNA25_RESOURCES_DIR=/models/hiera-luna25 \
+    --env LUNA25_RESULTS_DIR=/models/hiera-luna25/results \
     "$IMAGE_DIR" \
     python -u "$PROJECT_ROOT/finetune.py" --k_fold

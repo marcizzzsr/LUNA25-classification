@@ -148,7 +148,10 @@ if __name__ == "__main__":
         help="Path to the input annotation CSV file (default: %(default)s)",
     )
     parser.add_argument(
-        "--output-dir", type=str, help="Output directory for train/val splits"
+        "--output-dir",
+        type=str,
+        default="data_splits",
+        help="Output directory for train/val/test splits (default: %(default)s)",
     )
     parser.add_argument(
         "--test-size",

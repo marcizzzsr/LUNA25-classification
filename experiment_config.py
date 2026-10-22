@@ -4,6 +4,7 @@
 
 # Please note that this configuration is provided as a template. The parameters included represent the submitted version for the LUNA25 Challenge.
 
+import os
 from pathlib import Path
 
 
@@ -12,18 +13,19 @@ class Configuration(object):
         assert kind in ["all-data", "k-fold", "submission"], \
             f"Invalid kind: {kind}. Must be one of ['all-data', 'k-fold', 'submission']."
         self.kind = kind
-        workspace_root = str(Path(__file__).resolve().parent.parent)
+        root = Path(__file__).resolve().parent
 
         # Directories
-        self.WORKDIR = Path.home() / "hiera-luna25-finetuning"
-        self.RESOURCES = Path("/models/hiera-luna25")
+        # Defaults are relative to the repository; override them with the LUNA25_* environment variables.
+        self.WORKDIR = root
+        self.RESOURCES = Path(os.environ.get("LUNA25_RESOURCES_DIR", root / "resources"))
         # Path to the nodule blocks folder provided for the LUNA25 training.
-        self.DATADIR = Path("/datasets/LUNA25/luna25_nodule_blocks")
+        self.DATADIR = Path(os.environ.get("LUNA25_DATA_DIR", root.parent / "luna25_nodule_blocks"))
         # Path to the folder containing the CSVs for training and validation.
-        self.CSV_DIR = self.WORKDIR / "data_splits"
+        self.CSV_DIR = Path(os.environ.get("LUNA25_SPLITS_DIR", root / "data_splits"))
         # Results will be saved in the results directory
         # inside a subfolder named according to the specified EXPERIMENT_NAME and MODE.
-        self.EXPERIMENT_DIR = self.RESOURCES / "results"
+        self.EXPERIMENT_DIR = Path(os.environ.get("LUNA25_RESULTS_DIR", root / "results"))
         self.CONFIGS_DIR = self.WORKDIR / "configs"
         if kind != "submission":
             self.EXPERIMENT_DIR.mkdir(parents=True, exist_ok=True)
@@ -131,7 +133,7 @@ class Configuration(object):
         self.CLIP_GRAD_L2NORM = 5.0
 
         if kind == "all-data":
-            self.CSV_DIR = Path(f"/{workspace_root}")
+            self.CSV_DIR = Path(os.environ.get("LUNA25_ANNOTATION_DIR", root.parent))
             self.CSV_DIR_TRAIN = self.CSV_DIR / "LUNA25_Public_Training_Development_Data.csv"
             self.EPOCHS = 29
 
