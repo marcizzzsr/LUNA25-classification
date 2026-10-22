@@ -161,3 +161,9 @@ cython_debug/
 
 # Ignore exported/saved images
 *.tar.gz
+
+# Credentials / local tunnel state
+token.json
+code_tunnel.json
+.code-tunnel-config.yaml
+tunnel-stable.lock
