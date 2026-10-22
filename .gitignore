@@ -167,3 +167,6 @@ token.json
 code_tunnel.json
 .code-tunnel-config.yaml
 tunnel-stable.lock
+
+# Slurm job logs
+jobs/logs/

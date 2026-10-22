@@ -15,15 +15,15 @@ class Configuration(object):
         workspace_root = str(Path(__file__).resolve().parent.parent)
 
         # Directories
-        self.WORKDIR = Path(f"/{workspace_root}/hiera-luna25-finetuning")
-        self.RESOURCES = self.WORKDIR / "resources"
+        self.WORKDIR = Path.home() / "hiera-luna25-finetuning"
+        self.RESOURCES = Path("/models/hiera-luna25")
         # Path to the nodule blocks folder provided for the LUNA25 training.
-        self.DATADIR = Path(f"/{workspace_root}/luna25_nodule_blocks")
+        self.DATADIR = Path("/datasets/LUNA25/luna25_nodule_blocks")
         # Path to the folder containing the CSVs for training and validation.
-        self.CSV_DIR = Path(f"/{workspace_root}/data_splits")
+        self.CSV_DIR = self.WORKDIR / "data_splits"
         # Results will be saved in the results directory
         # inside a subfolder named according to the specified EXPERIMENT_NAME and MODE.
-        self.EXPERIMENT_DIR = self.WORKDIR / "results"
+        self.EXPERIMENT_DIR = self.RESOURCES / "results"
         self.CONFIGS_DIR = self.WORKDIR / "configs"
         if kind != "submission":
             self.EXPERIMENT_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,10 +32,10 @@ class Configuration(object):
         self.EXPERIMENT_NAME = "finetune-hiera"  # must contain "hiera"
         self.MODE = "3D"
         self.SEED = 2025
-        self.NUM_WORKERS = 2
+        self.NUM_WORKERS = 8
         # The effective batch size is self.MINI_BATCH_SIZE * self.GRADIENT_ACCUMULATION_STEPS.
-        self.MINI_BATCH_SIZE = 32
-        self.GRADIENT_ACCUMULATION_STEPS = 2
+        self.MINI_BATCH_SIZE = 64
+        self.GRADIENT_ACCUMULATION_STEPS = 1
         self.PATIENCE = 10
         self.NUM_GPUS = 1
         self.NUM_FOLDS = 5
