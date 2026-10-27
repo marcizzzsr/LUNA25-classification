@@ -223,6 +223,8 @@ class CTCaseDataset(data.Dataset):
         size_px: int = 64,
         size_mm: int = 50,
         mode: str = "3D",
+        z_spacing: float = None,
+        zoom: tuple = None,
     ):
 
         self.data_dir = Path(data_dir)
@@ -234,6 +236,8 @@ class CTCaseDataset(data.Dataset):
         self.size_mm = size_mm
         self.depth_px = config.DEPTH_PX if mode == "3D" else 1
         self.mode = mode
+        self.z_spacing = z_spacing
+        self.zoom = zoom
 
     def __getitem__(self, idx):  # caseid, z, y, x, label, radius
 
@@ -259,6 +263,9 @@ class CTCaseDataset(data.Dataset):
             radius = 2.5
             translations = radius if radius > 0 else None
 
+        # random isotropic zoom: scale the output spacing, folded into the same affine as the rotation
+        zoom = np.random.uniform(*self.zoom) if self.zoom else 1.0
+
         output_shape = (self.depth_px, self.size_px, self.size_px)
 
         patch = extract_patch(
@@ -269,9 +276,9 @@ class CTCaseDataset(data.Dataset):
             srcVoxelSpacing=spacing,
             output_shape=output_shape,
             voxel_spacing=(
-                self.size_mm / self.size_px,
-                self.size_mm / self.size_px,
-                self.size_mm / self.size_px,
+                (self.z_spacing or self.size_mm / self.size_px) / zoom,
+                self.size_mm / self.size_px / zoom,
+                self.size_mm / self.size_px / zoom,
             ),
             rotations=self.rotations,
             translations=translations,
@@ -425,7 +432,9 @@ def get_data_loader(
     size_px=64,
     size_mm=70,
     rotations=None,
-    translations=None
+    translations=None,
+    z_spacing=None,
+    zoom=None
 ):
 
     data_set = CTCaseDataset(
@@ -436,6 +445,8 @@ def get_data_loader(
         size_mm=size_mm,
         size_px=size_px,
         mode=mode,
+        z_spacing=z_spacing,
+        zoom=zoom,
     )
 
     data_loader = DataLoader(

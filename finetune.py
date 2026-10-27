@@ -122,6 +122,8 @@ def finetune(train_csv_path, exp_save_root, valid_csv_path=None):
         translations=config.TRANSLATION,
         size_mm=config.SIZE_MM,
         size_px=config.SIZE_PX,
+        z_spacing=config.Z_SPACING_MM,
+        zoom=config.ZOOM,
     )
 
     valid_loader = None
@@ -143,6 +145,7 @@ def finetune(train_csv_path, exp_save_root, valid_csv_path=None):
             translations=None,
             size_mm=config.SIZE_MM,
             size_px=config.SIZE_PX,
+            z_spacing=config.Z_SPACING_MM,
         )
 
     device = torch.device("cuda:0")
@@ -335,7 +338,39 @@ if __name__ == "__main__":
                         help="Enable k-fold cross-validation training mode.")
     parser.add_argument("--all_data", action="store_true",
                         help="Enable training mode using all available data.")
+    parser.add_argument("--fold", type=int, default=None,
+                        help="With --k_fold, train only this fold.")
+    parser.add_argument("--no_mixup", action="store_true",
+                        help="Disable MixUp/CutMix augmentation.")
+    parser.add_argument("--z_spacing", type=float, default=None,
+                        help="Output z spacing in mm (default: isotropic SIZE_MM / SIZE_PX).")
+    parser.add_argument("--size_mm", type=float, default=None,
+                        help="In-plane crop size in mm (default: config.SIZE_MM).")
+    parser.add_argument("--depth_px", type=int, default=None,
+                        help="Crop depth in slices (default: config.DEPTH_PX).")
+    parser.add_argument("--zoom", type=float, nargs=2, default=None, metavar=("MIN", "MAX"),
+                        help="Random isotropic zoom range for training crops, e.g. 0.7 1.3.")
     args = parser.parse_args()
+
+    if args.no_mixup:
+        config.MIXUP["ENABLE"] = False
+        config.EXPERIMENT_NAME = "finetune-hiera-nomixup"
+
+    if args.z_spacing:
+        config.Z_SPACING_MM = args.z_spacing
+        config.EXPERIMENT_NAME = f"finetune-hiera-z{args.z_spacing:g}mm"
+
+    if args.size_mm:
+        config.SIZE_MM = args.size_mm
+        config.EXPERIMENT_NAME = f"finetune-hiera-xy{args.size_mm:g}mm"
+
+    if args.depth_px:
+        config.DEPTH_PX = args.depth_px
+        config.EXPERIMENT_NAME = f"finetune-hiera-d{args.depth_px}"
+
+    if args.zoom:
+        config.ZOOM = tuple(args.zoom)
+        config.EXPERIMENT_NAME += "-zoom"
 
     save_root = config.EXPERIMENT_DIR / \
         f"{config.EXPERIMENT_NAME}-{config.MODE}-{datetime.today().strftime('%Y%m%d')}"
@@ -345,7 +380,7 @@ if __name__ == "__main__":
         logging.info(
             "Warning: Both --k_fold and --all_data were specified. Please choose only one.")
     elif args.k_fold:
-        for i in range(1, config.NUM_FOLDS + 1):
+        for i in (range(args.fold, args.fold + 1) if args.fold else range(1, config.NUM_FOLDS + 1)):
             logging.info("-" * 50)
             logging.info("Fold %s", i)
             finetune(

@@ -46,6 +46,10 @@ class Configuration(object):
         self.SIZE_MM = 50
         self.SIZE_PX = 64
         self.DEPTH_PX = 16
+        # Output z spacing in mm; None = isotropic SIZE_MM / SIZE_PX
+        self.Z_SPACING_MM = None
+        # Random isotropic zoom range (min, max) for training; None = off. <1 zooms out, >1 zooms in
+        self.ZOOM = None
         self.PATCH_SIZE = [64, 128, 128]
         self.ROTATION = ((-45, 45), (-45, 45), (-45, 45))
         self.TRANSLATION = True

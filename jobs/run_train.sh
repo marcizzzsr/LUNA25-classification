@@ -65,4 +65,4 @@ apptainer exec \
     --env LUNA25_RESOURCES_DIR=/models/hiera-luna25 \
     --env LUNA25_RESULTS_DIR=/models/hiera-luna25/results \
     "$IMAGE_DIR" \
-    python -u "$PROJECT_ROOT/finetune.py" --k_fold
+    python -u "$PROJECT_ROOT/finetune.py" --k_fold "$@"
