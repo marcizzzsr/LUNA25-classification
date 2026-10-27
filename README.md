@@ -59,6 +59,18 @@ When training using all data, set `kind="all-data"` in `experiment_config.py` th
 python LUNA25-classification/finetune.py --all_data
 ```
 
+## Analysis
+Exploration and diagnostics live in `analysis/`:
+- `visualize_*.ipynb`: plots of data, predictions and model internals.
+- `diagnostics_*`: model-error analyses. A `diagnostics_X.py` computes a CSV under `/models/hiera-luna25/figures/diagnostics` (heavy, run as a job); the matching `diagnostics_X.ipynb` reads it and plots.
+
+On the cluster, run them through the Slurm jobs (submitted from `jobs/`, paths relative to the repo root):
+```
+cd jobs
+sbatch run_analysis.sh analysis/diagnostics_truncation.py
+sbatch run_notebook.sh analysis/diagnostics_truncation.ipynb
+```
+
 ## License
 This work's code is licensed under the [Apache License, Version 2.0](https://opensource.org/licenses/Apache-2.0).
 
