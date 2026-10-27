@@ -15,12 +15,12 @@ set -euo pipefail
 # Jobs are submitted from the jobs/ directory:
 #   cd jobs
 #   mkdir -p logs/notebook
-#   sbatch run_notebook.sh [notebook]   # default: visualize_nodule_size.ipynb
+#   sbatch run_notebook.sh [notebook]   # path from repo root, default: analysis/visualize_nodule_size.ipynb
 # -----------------------------------------------------------------------------
 
 SCRIPT_DIR="${SLURM_SUBMIT_DIR}"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-NOTEBOOK="$PROJECT_ROOT/${1:-visualize_nodule_size.ipynb}"
+NOTEBOOK="$PROJECT_ROOT/${1:-analysis/visualize_nodule_size.ipynb}"
 # the notebooks read from /datasets/slow
 SLOW_DATASETS=/mnt/data/unisr-data/datasets
 
