@@ -13,7 +13,7 @@ set -euo pipefail
 #   cd jobs
 #   mkdir -p logs/analysis
 #   sbatch run_analysis.sh analysis/diagnostics_truncation.py [args...]
-#   sbatch --export=ALL,LIMIT=50 run_analysis.sh analysis/diagnostics_truncation.py   # smoke test
+#   LIMIT=50 sbatch run_analysis.sh analysis/diagnostics_truncation.py   # smoke test (--export=ALL,VAR=... gets held: "user env retrieval failed")
 
 SCRIPT_DIR="${SLURM_SUBMIT_DIR}"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
