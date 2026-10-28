@@ -47,6 +47,8 @@ class Configuration(object):
         # smoothed with a centered moving average over SMOOTH_WINDOW epochs.
         self.SELECTION_SIGMA = 0.15
         self.SMOOTH_WINDOW = 3
+        # Focal loss (gamma, alpha) replacing the class-balanced sampler; None = BCE + balanced sampler.
+        self.FOCAL = None
         self.NUM_GPUS = 1
         self.NUM_FOLDS = 5
 

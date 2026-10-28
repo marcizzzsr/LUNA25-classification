@@ -18,6 +18,7 @@ except Exception as e:
 import argparse
 from collections import deque
 from datetime import datetime
+from functools import partial
 import logging
 import math
 import random
@@ -26,6 +27,7 @@ import numpy as np
 import pandas as pd
 from sklearn import metrics
 import torch
+from torchvision.ops import sigmoid_focal_loss
 from tqdm import tqdm
 
 from dataloader import get_data_loader
@@ -111,10 +113,14 @@ def finetune(train_csv_path, exp_save_root, valid_csv_path=None):
     logging.info("Number of benign training samples: %s",
                  len(train_df) - train_df.label.sum())
 
-    weights = make_weights_for_balanced_classes(train_df.label.values)
-    weights = torch.DoubleTensor(weights)
-    sampler = torch.utils.data.sampler.WeightedRandomSampler(
-        weights, len(train_df))
+    if config.FOCAL:
+        # get_data_loader does not shuffle, so the plain sampler is needed here.
+        sampler = torch.utils.data.RandomSampler(train_df)
+    else:
+        weights = make_weights_for_balanced_classes(train_df.label.values)
+        weights = torch.DoubleTensor(weights)
+        sampler = torch.utils.data.sampler.WeightedRandomSampler(
+            weights, len(train_df))
 
     train_loader = get_data_loader(
         config.DATADIR,
@@ -180,6 +186,13 @@ def finetune(train_csv_path, exp_save_root, valid_csv_path=None):
             logging.info("[Frozen] %s: %s", name, param.size())
 
     loss_function = torch.nn.BCEWithLogitsLoss()
+    # Validation always uses plain BCE, so valid_loss stays comparable across runs.
+    if config.FOCAL:
+        gamma, alpha = config.FOCAL
+        train_loss_fn = partial(sigmoid_focal_loss, gamma=gamma, alpha=alpha,
+                                reduction="mean")
+    else:
+        train_loss_fn = loss_function
     optimizer = optimizer = construct_optimizer(
         model.hiera) if "hiera" in config.EXPERIMENT_NAME.lower() else construct_optimizer(model)
     if config.MIXUP["ENABLE"]:
@@ -229,7 +242,7 @@ def finetune(train_csv_path, exp_save_root, valid_csv_path=None):
                 inputs, labels = mixup_fn(inputs, labels)
             inputs = inputs.to(device)
             outputs = model(inputs)
-            loss = loss_function(outputs.squeeze(), labels.squeeze())
+            loss = train_loss_fn(outputs.squeeze(), labels.squeeze())
 
             loss /= gradient_accumulation_steps
             loss.backward()
@@ -401,6 +414,8 @@ if __name__ == "__main__":
                         help="Crop depth in slices (default: config.DEPTH_PX).")
     parser.add_argument("--zoom", type=float, nargs=2, default=None, metavar=("MIN", "MAX"),
                         help="Random isotropic zoom range for training crops, e.g. 0.7 1.3.")
+    parser.add_argument("--focal", type=float, nargs=2, default=None, metavar=("GAMMA", "ALPHA"),
+                        help="Train with focal loss instead of BCE + class-balanced sampler, e.g. 1 0.75.")
     args = parser.parse_args()
 
     if args.no_mixup:
@@ -422,6 +437,10 @@ if __name__ == "__main__":
     if args.zoom:
         config.ZOOM = tuple(args.zoom)
         config.EXPERIMENT_NAME += "-zoom"
+
+    if args.focal:
+        config.FOCAL = tuple(args.focal)
+        config.EXPERIMENT_NAME += f"-focal-g{args.focal[0]:g}-a{args.focal[1]:g}"
 
     save_root = config.EXPERIMENT_DIR / \
         f"{config.EXPERIMENT_NAME}-{config.MODE}-{datetime.today().strftime('%Y%m%d')}"
