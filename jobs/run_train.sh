@@ -22,6 +22,7 @@ set -euo pipefail
 
 SCRIPT_DIR="${SLURM_SUBMIT_DIR}"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+SLOW_DATASETS=/mnt/data/unisr-data/datasets
 
 echo "SCRIPT_DIR   = $SCRIPT_DIR"
 echo "PROJECT_ROOT = $PROJECT_ROOT"
@@ -59,10 +60,12 @@ echo "Done sanity checks!"
 apptainer exec \
     --nv \
     --bind "$DATASETS:/datasets" \
+    --bind "$SLOW_DATASETS:/datasets/slow" \
     --bind "$MODELS:/models" \
     --pwd "$PROJECT_ROOT" \
     --env LUNA25_DATA_DIR=/datasets/LUNA25/luna25_nodule_blocks \
     --env LUNA25_RESOURCES_DIR=/models/hiera-luna25 \
     --env LUNA25_RESULTS_DIR=/models/hiera-luna25/results \
+    --env LUNA25_DIAMETER_CSV=/datasets/slow/LUNA25/additional-annotations/csv-annotations/lesion_nlst_diameters_nolocal.csv \
     "$IMAGE_DIR" \
     python -u "$PROJECT_ROOT/finetune.py" --k_fold "$@"

@@ -16,6 +16,7 @@ except Exception as e:
     print(f"An error occurred during setup: {e}")
 
 import argparse
+from collections import deque
 from datetime import datetime
 import logging
 import math
@@ -33,6 +34,7 @@ from mixup import MixUpBinary
 from models.model_2d_vit import ViT2D
 from models.model_hiera import Hiera2D, Hiera3D
 from optimizer import construct_optimizer, get_lr_at_epoch, set_lr
+from selection_metrics import size_matched_auc, spec_at_sens
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -63,6 +65,9 @@ def summarize_metrics(exp_save_root):
         "train_loss": [],
         "valid_loss": [],
         "best_auc": [],
+        "best_auc_size_smoothed": [],
+        "auc_size": [],
+        "spec95sens": [],
         "epoch": []
     }
 
@@ -134,6 +139,12 @@ def finetune(train_csv_path, exp_save_root, valid_csv_path=None):
                      valid_df.label.sum())
         logging.info("Number of benign validation samples: %s",
                      len(valid_df) - valid_df.label.sum())
+        diameters = pd.read_csv(config.DIAMETER_CSV,
+                                usecols=["AnnotationID", "nlst_diameter_mm"])
+        valid_diam = valid_df[["AnnotationID"]].merge(
+            diameters, on="AnnotationID", how="left").nlst_diameter_mm.values
+        logging.info("Validation samples without NLST diameter: %s",
+                     np.isnan(valid_diam).sum())
 
         valid_loader = get_data_loader(
             config.DATADIR,
@@ -187,6 +198,12 @@ def finetune(train_csv_path, exp_save_root, valid_csv_path=None):
     mini_batch_size = config.MINI_BATCH_SIZE
     gradient_accumulation_steps = config.GRADIENT_ACCUMULATION_STEPS
     counter = 0
+    # Model selection on the size-matched AUC smoothed by a centered moving average:
+    # the window ending at the current epoch scores its center epoch, so the last
+    # window // 2 + 1 epochs (weights on CPU, predictions) are kept to save the center one.
+    window = config.SMOOTH_WINDOW
+    history = []
+    snapshots = deque(maxlen=window // 2 + 1)
 
     for epoch in range(epochs):
 
@@ -264,48 +281,82 @@ def finetune(train_csv_path, exp_save_root, valid_csv_path=None):
 
                 fpr, tpr, _ = metrics.roc_curve(y, y_pred)
                 auc_metric = metrics.auc(fpr, tpr)
+                auc_size = size_matched_auc(
+                    y, y_pred, valid_diam, config.SELECTION_SIGMA)
+                spec95 = spec_at_sens(y, y_pred, 0.95)
 
-                if auc_metric > best_metric:
+                history.append({
+                    "epoch": epoch + 1,
+                    "train_loss": epoch_train_loss,
+                    "valid_loss": epoch_valid_loss,
+                    "auc_global": auc_metric,
+                    "auc_size": auc_size,
+                    "auc_size_smoothed": np.nan,
+                    "spec95sens": spec95,
+                })
+                snapshots.append((
+                    {k: v.detach().cpu().clone()
+                     for k, v in model.state_dict().items()},
+                    y_pred,
+                ))
 
-                    counter = 0
-                    best_metric = auc_metric
-                    best_metric_epoch = epoch + 1
+                if len(history) >= window:
+                    center = history[-(window // 2) - 1]
+                    center["auc_size_smoothed"] = np.mean(
+                        [h["auc_size"] for h in history[-window:]])
 
-                    torch.save(
-                        model.state_dict(),
-                        exp_save_root / "best_metric_model.pth",
-                    )
+                    if center["auc_size_smoothed"] > best_metric:
 
-                    metadata = {
-                        "train_csv": train_csv_path,
-                        "valid_csv": valid_csv_path,
-                        "config": config,
-                        "best_auc": best_metric,
-                        "epoch": best_metric_epoch,
-                        "train_loss": epoch_train_loss,
-                        "valid_loss": epoch_valid_loss
-                    }
-                    np.save(
-                        exp_save_root / "config.npy",
-                        metadata,
-                    )
+                        counter = 0
+                        best_metric = center["auc_size_smoothed"]
+                        best_metric_epoch = center["epoch"]
+                        best_state, best_pred = snapshots[0]
 
-                    preds_df = pd.DataFrame({
-                        "AnnotationID": valid_df["AnnotationID"],
-                        "label": y.astype(int),
-                        "probability": y_pred
-                    })
-                    preds_df.to_csv(
-                        exp_save_root / "predictions.csv",
-                        index=False
-                    )
+                        torch.save(
+                            best_state,
+                            exp_save_root / "best_metric_model.pth",
+                        )
 
-                    logging.info("saved new best metric model")
+                        metadata = {
+                            "train_csv": train_csv_path,
+                            "valid_csv": valid_csv_path,
+                            "config": config,
+                            "best_auc_size_smoothed": best_metric,
+                            "best_auc": center["auc_global"],
+                            "auc_size": center["auc_size"],
+                            "spec95sens": center["spec95sens"],
+                            "epoch": best_metric_epoch,
+                            "train_loss": center["train_loss"],
+                            "valid_loss": center["valid_loss"]
+                        }
+                        np.save(
+                            exp_save_root / "config.npy",
+                            metadata,
+                        )
+
+                        preds_df = pd.DataFrame({
+                            "AnnotationID": valid_df["AnnotationID"],
+                            "label": y.astype(int),
+                            "probability": best_pred
+                        })
+                        preds_df.to_csv(
+                            exp_save_root / "predictions.csv",
+                            index=False
+                        )
+
+                        logging.info("saved new best metric model (epoch %s)",
+                                     best_metric_epoch)
+
+                pd.DataFrame(history).to_csv(
+                    exp_save_root / "history.csv", index=False)
 
                 logging.info(
-                    "current epoch: %s current AUC: %.4f best AUC: %.4f at epoch %s",
+                    "current epoch: %s AUC: %.4f size-matched AUC: %.4f "
+                    "spec@95sens: %.4f best smoothed size-matched AUC: %.4f at epoch %s",
                     epoch + 1,
                     auc_metric,
+                    auc_size,
+                    spec95,
                     best_metric,
                     best_metric_epoch,
                 )

@@ -26,6 +26,10 @@ class Configuration(object):
         # Results will be saved in the results directory
         # inside a subfolder named according to the specified EXPERIMENT_NAME and MODE.
         self.EXPERIMENT_DIR = Path(os.environ.get("LUNA25_RESULTS_DIR", root / "results"))
+        # NLST diameters per AnnotationID, used for the size-matched validation AUC.
+        self.DIAMETER_CSV = Path(os.environ.get(
+            "LUNA25_DIAMETER_CSV",
+            "/mnt/data/unisr-data/datasets/LUNA25/additional-annotations/csv-annotations/lesion_nlst_diameters_nolocal.csv"))
         self.CONFIGS_DIR = self.WORKDIR / "configs"
         if kind != "submission":
             self.EXPERIMENT_DIR.mkdir(parents=True, exist_ok=True)
@@ -39,6 +43,10 @@ class Configuration(object):
         self.MINI_BATCH_SIZE = 64
         self.GRADIENT_ACCUMULATION_STEPS = 1
         self.PATIENCE = 10
+        # Model selection: size-matched AUC (pair weight sigma on log-diameter),
+        # smoothed with a centered moving average over SMOOTH_WINDOW epochs.
+        self.SELECTION_SIGMA = 0.15
+        self.SMOOTH_WINDOW = 3
         self.NUM_GPUS = 1
         self.NUM_FOLDS = 5
 
