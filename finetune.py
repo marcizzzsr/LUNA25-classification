@@ -113,7 +113,7 @@ def finetune(train_csv_path, exp_save_root, valid_csv_path=None):
     logging.info("Number of benign training samples: %s",
                  len(train_df) - train_df.label.sum())
 
-    if config.FOCAL:
+    if not config.BALANCED_SAMPLER:
         # get_data_loader does not shuffle, so the plain sampler is needed here.
         sampler = torch.utils.data.RandomSampler(train_df)
     else:
@@ -415,7 +415,9 @@ if __name__ == "__main__":
     parser.add_argument("--zoom", type=float, nargs=2, default=None, metavar=("MIN", "MAX"),
                         help="Random isotropic zoom range for training crops, e.g. 0.7 1.3.")
     parser.add_argument("--focal", type=float, nargs=2, default=None, metavar=("GAMMA", "ALPHA"),
-                        help="Train with focal loss instead of BCE + class-balanced sampler, e.g. 1 0.75.")
+                        help="Train with focal loss instead of BCE, e.g. 1 0.75.")
+    parser.add_argument("--no_sampler", action="store_true",
+                        help="Disable the class-balanced sampler (plain shuffling).")
     args = parser.parse_args()
 
     if args.no_mixup:
@@ -441,6 +443,10 @@ if __name__ == "__main__":
     if args.focal:
         config.FOCAL = tuple(args.focal)
         config.EXPERIMENT_NAME += f"-focal-g{args.focal[0]:g}-a{args.focal[1]:g}"
+
+    if args.no_sampler:
+        config.BALANCED_SAMPLER = False
+        config.EXPERIMENT_NAME += "-nosampler"
 
     save_root = config.EXPERIMENT_DIR / \
         f"{config.EXPERIMENT_NAME}-{config.MODE}-{datetime.today().strftime('%Y%m%d')}"
